@@ -36,7 +36,10 @@
    (:module "libs"
             :pathname "src/libs"
             :components
-            ((:file "cl-pinner.lib.stub")))
+            (
+             (:file "cl-pinner.lib.stub")
+             (:file "cl-pinner.lib.fetch")
+             ))
 
    ;; The main module
    (:module "cl-pinner"

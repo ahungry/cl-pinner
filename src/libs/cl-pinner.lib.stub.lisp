@@ -18,24 +18,12 @@
 
 (in-package #:cl-user)
 
-(defpackage cl-pinner.lib.fetch
+(defpackage cl-pinner.lib.stub
   (:use :cl)
   (:export
    :echo))
 
 (in-package #:cl-pinner.lib.stub)
-
-(defparameter *base-directory* (asdf:system-source-directory :cl-pinner))
-
-(defun fetch-git (package uri version)
-  "Clone and check out from URI the specified VERSION."
-  (let ((clone-to-directory (format nil "pinned/~a-~a" package version))
-        (path (merge-pathnames clone-to-directory *base-directory*))
-        (cwd (sb-posix:getcwd)))
-    (sb-ext:run-program "git" '("clone" uri path))
-    (sb-posix:chdir path)
-    (sb-ext:run-program "git" '("checkout" version))
-    (sb-posix:chdir cwd)))
 
 (defun echo (input)
   input)

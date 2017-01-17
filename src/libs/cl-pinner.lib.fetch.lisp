@@ -21,20 +21,39 @@
 (defpackage cl-pinner.lib.fetch
   (:use :cl)
   (:export
-   :echo))
+   :fetch-git))
 
-(in-package #:cl-pinner.lib.stub)
+(in-package #:cl-pinner.lib.fetch)
 
 (defparameter *base-directory* (asdf:system-source-directory :cl-pinner))
 
+(defun fetch-dir (package version)
+  "Get the fetch dir to work in."
+  (merge-pathnames (format nil "pinned/~a-~a" package version) *base-directory*))
+
 (defun fetch-git (package uri version)
   "Clone and check out from URI the specified VERSION."
-  (let ((clone-to-directory (format nil "pinned/~a-~a" package version))
-        (path (merge-pathnames clone-to-directory *base-directory*))
-        (cwd (sb-posix:getcwd)))
-    (sb-ext:run-program "git" '("clone" uri path))
+  (let* ((path (format nil "~a.tmp" (fetch-dir package version)))
+         (cwd (sb-posix:getcwd)))
+    (sb-ext:run-program "/usr/bin/git" (list "clone" uri (format nil "~a" path)))
     (sb-posix:chdir path)
-    (sb-ext:run-program "git" '("checkout" version))
+    (sb-ext:run-program "/usr/bin/git" (list "checkout" version))
     (sb-posix:chdir cwd)))
+
+(defun recombobulate-package (package version)
+  "Rename it."
+  (let* ((clone-to (fetch-dir package version))
+         (clone-from (format nil "~a.tmp" clone-to)))
+    (af.lib.clone:clone-project
+     clone-from
+     clone-to
+     package
+     "dude-sweet")))
+
+(defun fetch (type package uri version)
+  "Perform the operations."
+  (declare (ignore type)) ;; only git supported atm...
+  (fetch-git package uri version)
+  (recombobulate-package package version))
 
 ;;; "cl-pinner.lib.stub" goes here. Hacks and glory await!
