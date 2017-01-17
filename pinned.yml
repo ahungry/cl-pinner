@@ -1,0 +1,7 @@
+# Define some dependencies
+system:
+  # A great utility library
+  ahungry-fleece:
+    type: git
+    uri: https://github.com/ahungry/ahungry-fleece.git
+    version: 0.3.1
