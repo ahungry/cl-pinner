@@ -21,6 +21,7 @@
 (defpackage cl-pinner.lib.fetch
   (:use :cl)
   (:export
+   :fetch
    :fetch-git))
 
 (in-package #:cl-pinner.lib.fetch)
@@ -29,7 +30,7 @@
 
 (defun fetch-dir (package version)
   "Get the fetch dir to work in."
-  (merge-pathnames (format nil "pinned/~a-~a" package version) *base-directory*))
+  (merge-pathnames (format nil "pinned/v~a.~a" version package) *base-directory*))
 
 (defun fetch-git (package uri version)
   "Clone and check out from URI the specified VERSION."
@@ -40,20 +41,110 @@
     (sb-ext:run-program "/usr/bin/git" (list "checkout" version))
     (sb-posix:chdir cwd)))
 
+(defun clean-defined-packages (package-list)
+  "For each package in PACKAGE-LIST, remove characters such as quotes
+and leading colon/hashes."
+  (mapcar (lambda (package)
+            (cl-ppcre:regex-replace-all "(^[\"#:]*|[\"]$)" package ""))
+          package-list))
+
+(defun find-defined-packages-in-directory (directory)
+  "Recurse through DIRECTORY, finding all defined packages.
+
+This returns 2 values, the list of package defining files, and
+the packages defined within those files."
+  (let ((package-defining-files
+         (append (af.lib.io:find-file-matches directory "(defpackage " ".asd")
+                 (af.lib.io:find-file-matches directory "(defpackage " ".lisp"))))
+    (values
+     package-defining-files
+     (clean-defined-packages
+            (loop for file in package-defining-files
+               collect (aref
+                        (nth-value
+                         1
+                         (cl-ppcre:scan-to-strings
+                          "(?m)\\(defpackage +(.*?)( +|$)"
+                          (af.lib.io:file-get-contents file)))
+                        0))))))
+
+(defun rename-package-list (packages version)
+  "Prepend VERSION to each package in PACKAGES in a newly generated alist.
+This format is primarily used for af.lib.io:file-replace-strings call."
+  (mapcar (lambda (package)
+            (cons (format nil "([\\(:\"# ]+)~a" package)
+                  (format nil "\\1v~a.~a" version package)))
+          packages))
+
+(defun redefine-packages-in-directory (directory version)
+  "Recurse through DIRECTORY, redefining PACKAGE to VERSION.PACKAGE."
+  (multiple-value-bind (package-files defined-packages)
+      (find-defined-packages-in-directory directory)
+    (declare (ignore package-files)) ; we may want to just iterate these sometime
+    (let ((package-replacement-list (rename-package-list defined-packages version))
+          (file-list (append (af.lib.io:find-file directory ".lisp")
+                             ;;(af.lib.io:find-file directory ".asd")
+                             (af.lib.io:find-file directory ".ros")
+                             (af.lib.io:find-file directory ".cl"))))
+      (loop for file in file-list
+         do (progn
+              ;; First pass, prefix with v0.0.0 on each package
+              (af.lib.io:file-replace-strings file package-replacement-list)
+
+              ;; Second pass, remove any dupes from package name overlapping
+              ;; with our initial clone project rename (yes, this is horribly
+              ;; inefficient, but fine for now as we prototype things...)
+              (af.lib.io:file-replace-strings
+               file
+               (list (cons (format nil "v~a\\.v~a" version version)
+                           (format nil "v~a" version))))
+              )))))
+
+(defun undefine-redefined-package-files (directory version)
+  "The redefine step may have altered file names by incorrectly
+adding a v0.0.0 prefix, so if so, strip it out at this time."
+  (loop for file in (af.lib.io:find-file directory ".asd")
+     do (progn
+          (af.lib.io:file-replace-strings
+           file
+           (list (cons (format nil "(?m)(\\(:file .*?)v~a\\." version) "\\1"))))))
+
 (defun recombobulate-package (package version)
-  "Rename it."
+  "Take in a PACKAGE and rename it to the appropriate VERSION.
+
+Assumes a PACKAGE.tmp directory already exists (it builds the version
+specific package off a copy of it."
   (let* ((clone-to (fetch-dir package version))
          (clone-from (format nil "~a.tmp" clone-to)))
+
+    ;; This handles recurisvely copying the directory
     (af.lib.clone:clone-project
      clone-from
      clone-to
      package
-     "dude-sweet")))
+     (format nil "v~a.~a" version package))
+;;     package) ; Don't rename yet, we do in next step
+
+    ;; Now, we want to go through the directory redefining all
+    ;; defpackages to have the version prefix (incase supporting
+    ;; packages are defined, that do not match the main package name).
+    (redefine-packages-in-directory clone-to version)
+    ))
+    ;;(undefine-redefined-package-files clone-to version)))
 
 (defun fetch (type package uri version)
   "Perform the operations."
   (declare (ignore type)) ;; only git supported atm...
   (fetch-git package uri version)
-  (recombobulate-package package version))
+
+  ;; Rename the files so multiple versions can work with each other
+  (recombobulate-package package version)
+
+  ;; Add it to the ASDF registry
+  (pushnew (truename (fetch-dir package version)) asdf:*central-registry*))
+
+(defun fetch-and-load (type package uri version)
+  (fetch type package uri version)
+  (ql:quickload (format nil "v~a.~a" version package)))
 
 ;;; "cl-pinner.lib.stub" goes here. Hacks and glory await!
