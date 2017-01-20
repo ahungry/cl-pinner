@@ -22,7 +22,7 @@
   (:use :cl)
   (:export
    :fetch
-   :fetch-git))
+   :fetch-and-load))
 
 (in-package #:cl-pinner.lib.fetch)
 
