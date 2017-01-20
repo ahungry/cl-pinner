@@ -82,10 +82,10 @@ This format is primarily used for af.lib.io:file-replace-strings call."
       (find-defined-packages-in-directory directory)
     (declare (ignore package-files)) ; we may want to just iterate these sometime
     (let ((package-replacement-list (rename-package-list defined-packages version))
-          (file-list (append (af.lib.io:find-file directory ".lisp")
+          (file-list (append (af.lib.io:find-file directory ".lisp$")
                              ;;(af.lib.io:find-file directory ".asd")
-                             (af.lib.io:find-file directory ".ros")
-                             (af.lib.io:find-file directory ".cl"))))
+                             (af.lib.io:find-file directory ".ros$")
+                             (af.lib.io:find-file directory ".cl$"))))
       (loop for file in file-list
          do (progn
               ;; First pass, prefix with v0.0.0 on each package
