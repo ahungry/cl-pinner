@@ -86,7 +86,7 @@ system:
 ```
 
 This will allow the user an easy location to specify the exact
-versions of each library they want the sytsem to fetch and load,
+versions of each library they want the system to fetch and load,
 without having to modify their own project's ASDF file all the time.
 
 ## License
