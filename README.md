@@ -15,7 +15,7 @@ that isn't on Quicklisp until next month), you can run in your REPL
 (after cloning and loading this project):
 
 ```lisp
-(fetch-and-load
+(cl-pinner.lib.fetch:fetch-and-load
   "git" "ahungry-fleece"
   "https://github.com/ahungry/ahungry-fleece" "master")
 ```
@@ -31,7 +31,7 @@ You can then try out an earlier version of the same repository, by
 doing:
 
 ```lisp
-(fetch-and-load
+(cl-pinner.lib.fetch:fetch-and-load
   "git" "ahungry-fleece"
   "https://github.com/ahungry/ahungry-fleece" "0.3.1")
 ```
